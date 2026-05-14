@@ -5,12 +5,12 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // ── FIREBASE CONFIG — reemplazá con tus credenciales ──────────
 const firebaseConfig = {
-  apiKey:            "TU_API_KEY",
-  authDomain:        "TU_PROJECT.firebaseapp.com",
-  projectId:         "TU_PROJECT_ID",
-  storageBucket:     "TU_PROJECT.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId:             "TU_APP_ID",
+  apiKey:            "AIzaSyAHUJYUN-HqRTXvW00HmoTQY48JMHDt6t0",
+  authDomain:        "prestige-merch-2ad1a.firebaseapp.com",
+  projectId:         "prestige-merch-2ad1a",
+  storageBucket:     "prestige-merch-2ad1a.firebasestorage.app",
+  messagingSenderId: "644078388510",
+  appId:             "1:644078388510:web:3cbb556f4d38135c39350f",
 };
 const firebaseApp = initializeApp(firebaseConfig);
 const db          = getFirestore(firebaseApp);
