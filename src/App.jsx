@@ -5,23 +5,19 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "fire
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 
 // ── FIREBASE CONFIG ──────────────────────────────────────────
-// Las credenciales viven en .env.local (no commiteado).
-// Si te falla con "missing API key" → revisá que .env.local exista
-// con las VITE_FIREBASE_* y reiniciá `npm run dev` (Vite las lee al arrancar).
+// Lee desde import.meta.env (Vite) si están seteadas, sino usa los
+// valores hardcodeados como fallback. Las API keys de Firebase Web son
+// PÚBLICAS por diseño (van inlineadas en el bundle del cliente). La
+// seguridad real está en las reglas de Firestore + Auth.
+// Docs: https://firebase.google.com/docs/projects/api-keys
 const firebaseConfig = {
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY            || "AIzaSyAHUJYUN-HqRTXvW00HmoTQY48JMHDt6t0",
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN        || "prestige-merch-2ad1a.firebaseapp.com",
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID         || "prestige-merch-2ad1a",
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET     || "prestige-merch-2ad1a.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "644078388510",
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID             || "1:644078388510:web:3cbb556f4d38135c39350f",
 };
-
-if (!firebaseConfig.apiKey) {
-  throw new Error(
-    "Falta configuración de Firebase. Creá un .env.local en la raíz con las VITE_FIREBASE_* (mirá .env.example)."
-  );
-}
 const firebaseApp = initializeApp(firebaseConfig);
 const db          = getFirestore(firebaseApp);
 const storage     = getStorage(firebaseApp);
