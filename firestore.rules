@@ -1,0 +1,100 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── HELPERS ─────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Form de la tienda: shape esperado del pedido. Sirve de defensa
+    // contra spam/garbage docs (porque el create es público).
+    function isValidNewOrder() {
+      let d = request.resource.data;
+      // productId y quantity son opcionales (backward-compat con la versión vieja).
+      return d.keys().hasOnly(['name','area','email','product','reason','status','date','timestamp','productId','quantity'])
+        && d.keys().hasAll(['name','area','email','product','reason','status','date','timestamp'])
+        && d.status == 'Pendiente'
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 120
+        && d.area is string && d.area.size() > 0 && d.area.size() <= 120
+        && d.email is string && d.email.size() <= 200
+        && d.product is string && d.product.size() <= 200
+        && d.reason is string && d.reason.size() <= 2000
+        && d.date is string && d.date.size() <= 30
+        && d.timestamp is number
+        && d.get('productId', '') is string
+        && d.get('productId', '').size() <= 50
+        && d.get('quantity', 1) is number
+        && d.get('quantity', 1) > 0
+        && d.get('quantity', 1) <= 999;
+    }
+
+    // ── ORDERS ──────────────────────────────────────────────────
+    // create: público pero validado (form anónimo de la tienda).
+    // read:   solo admins (ven todos los pedidos en el panel).
+    // update: solo admins, y solo el campo `status` (nada más).
+    // delete: nadie.
+    match /orders/{orderId} {
+      allow create: if isValidNewOrder();
+      allow read:   if isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['Pendiente','En proceso','Entregado'];
+      allow delete: if false;
+    }
+
+    // ── ADMINS ──────────────────────────────────────────────────
+    // read:  cada user puede leer SU propio doc (lo necesita el cliente
+    //        para chequear si es admin después del login).
+    // write: nadie desde el cliente. Se gestiona desde la consola de Firebase.
+    match /admins/{uid} {
+      allow read:  if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // ── PRODUCTS ────────────────────────────────────────────────
+    // read:  pública (catálogo visible para cualquier visitante).
+    // write: solo admins (panel admin).
+    match /products/{productId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // ── CONFIG ──────────────────────────────────────────────────
+    // Usado por config/branding (logoUrl). Lectura pública para que
+    // los visitantes vean el logo, escritura solo admins.
+    // El doc viejo config/images quedó huérfano tras el Paso 4 — se
+    // puede borrar a mano desde la consola sin romper nada.
+    match /config/{docId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // ── MAIL (Trigger Email extension) ──────────────────────────
+    // El form anónimo de la tienda crea docs acá para disparar la
+    // notificación al admin vía la extensión.
+    // - to: hardcodeado al email del admin para que nadie use esto
+    //   para spammear a terceros desde tu API key.
+    // - read/update/delete: bloqueado al cliente. La extensión usa
+    //   admin SDK que bypassea las reglas (puede leer/actualizar igual).
+    match /mail/{mailId} {
+      allow create: if request.resource.data.keys().hasOnly(['to','message'])
+        && request.resource.data.to == 'sduartefrelli@prestige-auto.com'
+        && request.resource.data.message.subject is string
+        && request.resource.data.message.subject.size() > 0
+        && request.resource.data.message.subject.size() <= 200
+        && request.resource.data.message.html is string
+        && request.resource.data.message.html.size() <= 10000;
+      allow read, update, delete: if false;
+    }
+
+    // ── DEFAULT DENY ────────────────────────────────────────────
+    // Cualquier otra colección queda bloqueada.
+  }
+}

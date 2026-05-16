@@ -1,0 +1,48 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── HELPERS ─────────────────────────────────────────────────
+    function isAdmin() {
+      return request.auth != null
+        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    // Validación común para uploads de imagen:
+    // - Solo tipos image/*
+    // - Tamaño máximo 5 MB
+    function isValidImage() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // ── PRODUCTOS ───────────────────────────────────────────────
+    // /products/{productId}.{ext}  — fotos de cada producto.
+    // read: público (las muestra el catálogo a todos los visitantes).
+    // write: solo admins, solo imágenes < 5MB.
+    match /products/{file} {
+      allow read:  if true;
+      allow write: if isAdmin() && isValidImage();
+    }
+
+    // ── BRANDING ────────────────────────────────────────────────
+    // /branding/logo.{ext}  — logo del header.
+    match /branding/{file} {
+      allow read:  if true;
+      allow write: if isAdmin() && isValidImage();
+    }
+
+    // ── LEGACY (paths viejos) ───────────────────────────────────
+    // Read público para que las imágenes ya subidas al path viejo
+    // sigan funcionando hasta que se re-cargue cada producto en
+    // los paths nuevos. Ningún write — el código nuevo no usa esto.
+    match /merch/{file} {
+      allow read:  if true;
+      allow write: if false;
+    }
+
+    // ── DEFAULT DENY ────────────────────────────────────────────
+    // Cualquier otro path queda bloqueado.
+  }
+}
